@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <cctype>
+#include <vector>
 
 using namespace std;
 
@@ -18,8 +19,9 @@ struct Node{
 
 class ParseTree{
     public:
-        Node* Parse(string, int);
+        Node* Parse(string, int &);
         void InOrderPrint(Node* root);
+        void LevelPrint(Node* root);
         void Preprocess(string &s){
             s += '$';
         }
@@ -33,7 +35,7 @@ class ParseTree{
         
 };
 
-Node* ParseTree::Parse(string pattern, int index){
+Node* ParseTree::Parse(string pattern, int &index){  //NOTICE: use int & here, cause index is global var.
     Node* v = new Node();
     while(pattern[index] != '$'){
         char now = pattern[index];
@@ -47,16 +49,14 @@ Node* ParseTree::Parse(string pattern, int index){
             //cout << now << endl;
             ++index;
         } else if('|' == now){
-            Node* vr = Parse(pattern, index+1);
+            Node* vr = Parse(pattern, ++index); //NOTICE: ++index NOT index+1
             v = CreateNode('|', v, vr);
-            cout << now << endl;
         } else if('*' == now){
             v = CreateNode('*', v, NULL);
             ++index;
         } else if('(' == now){
-            cout << now << endl;
-            Node* vr = Parse(pattern, index+1);
-            ++index;
+            Node* vr = Parse(pattern, ++index);
+            ++index;  //cause the Parse will return by ")", the index should go one more step to skip ")"
             if(v->data != '\0'){
                 v = CreateNode('.', v, vr);
             } else {
@@ -76,11 +76,33 @@ void ParseTree::InOrderPrint(Node* root){
     InOrderPrint(root->right);
 }
 
+void ParseTree::LevelPrint(Node* root){
+    if(! root) return;
+    vector<Node*> vec;
+    vec.push_back(root);
+    int cur = 0;
+    int last = 0;
+    while(cur < vec.size()){ //BFS: iteration.
+        last = vec.size();
+        while(cur < last){  //The new layer
+            Node* node = vec[cur];
+            cout << node->data << "   ";
+            if(node->left) vec.push_back(node->left);
+            if(node->right) vec.push_back(node->right);
+            ++cur;
+        }
+        cout << endl;
+    }
+}
+
 int main(){
     ParseTree parser;
     string pattern("(AT|GA)((AG|AAA)*)");
     parser.Preprocess(pattern);
     cout << pattern << endl;
-    Node* root = parser.Parse(pattern, 0);
+    int index = 0;
+    Node* root = parser.Parse(pattern, index);
     parser.InOrderPrint(root);
+    cout << endl;
+    parser.LevelPrint(root);
 }
