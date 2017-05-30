@@ -200,3 +200,21 @@ string regexp_to_postfix(string regexp){
     }
     return postfix;    
 }
+
+int main(){
+    string regexp,postfix;
+    while(1){
+        cout << "Enter Regular Expression" << endl;
+        cin >> regexp;
+        if(regexp == "exit")break;
+        regexp = insert_concat(regexp);
+        postfix = regexp_to_postfix(regexp);
+        cout << "Postfix expression is" << endl;
+        postfix_to_nfa(postfix);
+        int final_state = st.top(); st.pop();
+        int start_state = st.top(); st.pop();
+        nfa[final_state].f = 1;
+        display_nfa();
+        nfa.clear();
+    }
+}
