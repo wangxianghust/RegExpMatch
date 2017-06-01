@@ -201,6 +201,20 @@ string regexp_to_postfix(string regexp){
     return postfix;    
 }
 
+//下面的函数对于输入的字符，进行状态转换。
+set<int> state_change(int c, set<int> &si){
+    set<int> temp;
+    int is_a = (c == 1) ? 0 : 1;
+    for(auto it=si.begin(); it != si.end(); ++it){
+        for(int i=0; i<(int)nfa[*it].a[is_a].size(); ++i){
+            temp.insert(nfa[*it].a[is_a][i]);
+        }
+    }
+    return temp;
+}
+
+
+
 int main(){
     string regexp,postfix;
     while(1){
