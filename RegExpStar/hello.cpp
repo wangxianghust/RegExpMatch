@@ -417,7 +417,7 @@ void print_menu(){
 
 void print(vector<tuple<int,int,bool> > min_dfa) {
     cout<<"---------------------------------------------------------"<<endl;
-    cout<<"State\t|\tA\t|\tB\t|\tFinal\t|"<<endl;
+    cout<<"State\t|\ta\t|\tb\t|\tFinal\t|"<<endl;
     cout<<"---------------------------------------------------------"<<endl;
     for(int i=0; i<(int)min_dfa.size(); i++) {
         cout<<i<<"\t|\t";
@@ -487,7 +487,6 @@ int main()
 
     getchar();
     custom_clear();
-
 
     while(1){
         print_menu();

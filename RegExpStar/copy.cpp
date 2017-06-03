@@ -6,6 +6,7 @@
 #include <stack>
 #include <set>
 #include <map>
+#include <queue>
 
 using namespace std;
 
@@ -130,6 +131,7 @@ void postfix_to_nfa(string postfix){
                 character(postfix[i]-'a'); break;
             case '*': kleene_star(); break;
             case '+': union_(); break;
+            case '.': concatenation(); break;
         }
     }
 }
@@ -201,10 +203,21 @@ string regexp_to_postfix(string regexp){
     return postfix;    
 }
 
+//闭包运算
+void epsilon_closure(int state, set<int> &si){
+    for(int i=0; i<(int)nfa[state].e.size(); ++i){
+        int next = nfa[state].e[i];
+        if(si.find(next) == si.end()){
+            si.insert(next);
+            epsilon_closure(next, si);
+        }        
+    }
+}
+
 //下面的函数对于输入的字符，进行状态转换。
 set<int> state_change(int c, set<int> &si){
     set<int> temp;
-    int is_a = (c == 1) ? 0 : 1;
+    int is_a = (c == 0) ? 0 : 1; //0 代表a, 1 代表b
     for(auto it=si.begin(); it != si.end(); ++it){
         for(int i=0; i<(int)nfa[*it].a[is_a].size(); ++i){
             temp.insert(nfa[*it].a[is_a][i]);
@@ -213,22 +226,164 @@ set<int> state_change(int c, set<int> &si){
     return temp;
 }
 
+void nfa_to_dfa(set<int> &si, queue<set<int>> &que, int start_state){
+    map<set<int>, int> mp;
+    mp[si] = -1; //初始化，最后检测，如果发现，说明是不可达的节点。
+    int ct = 0;
+    si.clear();
+    si.insert(ct);
+    epsilon_closure(start_state, si);
+    if(mp.find(si) == mp.end()){
+        mp[si] = ct;
+        que.push(si);
+        ct++;
+    }
+    int p = 0;
+    bool f1 = false; 
+    while(! que.empty()){
+        dfa.push_back(init_dfa_state);
+        si = que.front();
+        set<int> que_front = si; //save this state.
+        f1 = false;
+        //判断是否结束状态
+        for(auto it=si.begin(); it != si.end(); ++it){
+            if(nfa[*it].f == true) f1 = true;
+        }
+        dfa[p].f = f1;
+
+        for(int i=0; i<2; ++i){
+            //2表示a,b两个字符,eg 输入a
+            si = state_change(i, que_front);//输入a后达到的状态
+            for(auto it=si.begin(); it != si.end(); ++it){//闭包计算
+                epsilon_closure(*it, si);
+            }
+            //handle this state to dfa.
+            if(mp.find(si) == mp.end()){//不存在则添加
+                mp[si] = ct;
+                que.push(si);
+                dfa[p].a[i] = ct;
+                ct++;
+            } else {
+                dfa[p].a[i] = ( mp.find(si) )->second;
+            }
+
+        }
+        que.pop();
+        ++p;
+        //cout << p << endl;
+    }
+
+    for(int i=0; i<p; ++i){
+        for(int j=0; j<2; ++j){
+            if(dfa[i].a[j] == -1) dfa[i].a[j] = p; //p是不可达状态
+        }
+    }
+    
+    dfa.push_back(init_dfa_state);
+    for(int i=0; i<2; ++i){
+        dfa[p].a[i] = p;
+    }
+}
+
+void print_dfa(){
+    cout<<endl;
+    cout<<"NFA TO DFA CONVERSION"<<endl;
+    cout<<"---------------------------------------------------------"<<endl;
+    cout<<"STATE\t|\t"<<"a"<<"\t|\t"<<"b"<<"\t|\t"<<"IS_FINAL"<<"\t|"<<endl;
+    cout<<"---------------------------------------------------------"<<endl;
+    for(int i=0;i<dfa.size();i++){
+        cout<<i<<"\t|\t"<<dfa[i].a[0]<<"\t|\t"<<dfa[i].a[1]<<"\t|\t"<<dfa[i].f<<"\t|"<<endl;
+    }
+    cout<<"---------------------------------------------------------"<<endl;
+}
+
+void print_menu(){
+    cout<<"\n---------------------------------------\n";
+    cout<<"Input Regex: "<<dispregex<<endl<<endl;
+    cout<<"1. NFA\n";
+    cout<<"2. Intermediate DFA\n";
+    cout<<"3. Minimized DFA\n";
+    cout<<"4. Simulation\n";
+    cout<<"Press any other key to exit...\n\n";
+}
+
+bool simulate(int start_state){
+    cout << endl << "Enter string: " << endl;
+    string input;
+    cin.ignore();
+    getline(cin, input);
+    int cur_state, next_state;
+    cur_state = start_state;
+    cout<<"-----------------------------------------"<<endl;
+    cout<<"Input\t|\tCurrent\t|\tNext\t|"<<endl;
+    cout<<"-----------------------------------------"<<endl;
+    for(int i=0; i<input.size(); ++i){
+        if(input[i] == 'a'){
+            next_state = dfa[cur_state].a[0];
+        } else {
+            next_state = dfa[cur_state].a[1];
+        }
+        cout<<input[i]<<"\t|\t"<<cur_state<<"\t|\t"<<next_state<<"\t|\n";
+        cur_state=next_state;
+    }
+    cout<<"-----------------------------------------"<<endl;
+    cout<<endl<<"Verdict: ";
+    if(cur_state>=0 && dfa[cur_state].f){
+         cout << "Accepted" << endl; 
+         return true;
+    } else cout << "Rejected" << endl;
+    return false;
+}
 
 
 int main(){
     string regexp,postfix;
-    while(1){
         cout << "Enter Regular Expression" << endl;
         cin >> regexp;
-        if(regexp == "exit")break;
         regexp = insert_concat(regexp);
         postfix = regexp_to_postfix(regexp);
-        cout << "Postfix expression is" << endl;
+        cout << "Postfix expression is " << endl << postfix << endl;
         postfix_to_nfa(postfix);
         int final_state = st.top(); st.pop();
         int start_state = st.top(); st.pop();
         nfa[final_state].f = 1;
-        display_nfa();
-        nfa.clear();
-    }
+        //display_nfa();
+        
+        set<int> si;
+        queue<set<int>> que;
+        nfa_to_dfa(si, que, start_state);
+        cout << endl << endl;
+        //print_dfa();
+       // dfa.clear();
+        //nfa.clear();
+   getchar();
+   print_menu();
+   while(1){
+       //print_menu();
+       char choice;
+       choice = getchar();
+       //custom_clear();
+       switch(choice){
+           case '1':
+               display_nfa();
+               getchar();
+               break;
+            case '2':
+               print_dfa();
+               getchar();
+               break;
+            case '3':
+               cout << "I have not realized this function" << endl;
+               getchar();// eat the \enter
+               break;
+            case '4':
+               //while(1) if(simulate(start_state) ) break; 
+               simulate(start_state);
+               getchar();
+               break;
+            default:
+               exit(EXIT_SUCCESS);
+       }
+   } 
+   
 }
